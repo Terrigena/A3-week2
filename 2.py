@@ -87,10 +87,8 @@ def process_results(image, result, original_width, original_height):
 
     return image
 
-def save_image(image):
+def save_image(image, filename):
     """이미지를 저장."""
-    timestamp = time.strftime("%Y%m%d-%H%M%S")
-    filename = f"{SAVE_DIR}/product_{timestamp}.jpg"
     cv2.imwrite(filename, image)
     print(f"Image saved: {filename}")
 
@@ -111,7 +109,12 @@ def main():
                 result, original_width, original_height = send_to_api(img)
                 img_with_boxes = process_results(img, result, original_width, original_height)
 
-                save_image(img_with_boxes)
+                # 저장 디렉토리 및 파일 이름 설정
+                timestamp = time.strftime("%Y%m%d-%H%M%S")
+                filename = f"{SAVE_DIR}/product_{timestamp}.jpg"
+
+                # 라벨 박스가 추가된 이미지를 저장
+                save_image(img_with_boxes, filename)
 
                 cv2.imshow("Detection Results", img_with_boxes)
                 cv2.waitKey(2000)  # 2초 동안 결과 표시
