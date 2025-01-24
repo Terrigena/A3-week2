@@ -108,17 +108,20 @@ def main():
                 result, original_width, original_height = send_to_api(img)
 
                 # 학습 모델 결과를 처리하여 라벨 박스 추가
-                img_with_boxes = process_results(img, result, original_width, original_height)
+                if result:
+                    img_with_boxes = process_results(img, result, original_width, original_height)
+                    # 저장 디렉토리 및 파일 이름 설정
+                    timestamp = time.strftime("%Y%m%d-%H%M%S")
+                    filename = f"{SAVE_DIR}/product_{timestamp}.jpg"
 
-                # 저장 디렉토리 및 파일 이름 설정
-                timestamp = time.strftime("%Y%m%d-%H%M%S")
-                filename = f"{SAVE_DIR}/product_{timestamp}.jpg"
+                    # 라벨 박스가 추가된 이미지를 저장
+                    save_image(img_with_boxes, filename)
 
-                # 라벨 박스가 추가된 이미지를 저장
-                save_image(img_with_boxes, filename)
+                    # 결과를 표시
+                    cv2.imshow("Detection Results", img_with_boxes)
+                else:
+                    print("No objects detected.")
 
-                # 결과를 표시
-                cv2.imshow("Detection Results", img_with_boxes)
                 cv2.waitKey(2000)  # 2초 동안 결과 표시
                 cv2.destroyAllWindows()
 
