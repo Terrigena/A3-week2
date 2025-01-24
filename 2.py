@@ -95,33 +95,34 @@ def save_image(image):
     print(f"Image saved: {filename}")
 
 def main():
-    while True:
-        print("Waiting for product...\n")
-        time.sleep(1)  # 객체 감지 신호 대기 (필요 시 수정)
+    try:
+        while True:
+            data = ser.read()
+            if data == b"0":
+                print("Conveyor belt stopped. Capturing image...")
+                img = capture_image()
+                if img is None:
+                    print("No image captured.")
+                    ser = serial.Serial("/dev/ttyACM0", 9600)  # 컨베이어 벨트 재가동
+                    continue
 
-        ser.write(b"STOP")  # 제품이 감지되면 컨베이어 벨트 정지
-        print("Conveyor belt stopped.")
+                print("Image captured. Processing...")
+                result, original_width, original_height = send_to_api(img)
+                img_with_boxes = process_results(img, result, original_width, original_height)
 
-        img = capture_image()
-        if img is None:
-            ser.write(b"START")
-            print("No image captured. Conveyor belt restarting.")
-            continue
+                save_image(img_with_boxes)
 
-        print("Image captured. Processing...")
-        result, original_width, original_height = send_to_api(img)
-        img_with_boxes = process_results(img, result, original_width, original_height)
+                cv2.imshow("Detection Results", img_with_boxes)
+                cv2.waitKey(2000)  # 2초 동안 결과 표시
+                cv2.destroyAllWindows()
 
-        save_image(img_with_boxes)
-
-        cv2.imshow("Detection Results", img_with_boxes)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
-        ser.write(b"START")  # 처리가 완료되면 컨베이어 벨트 재가동
-        print("Conveyor belt restarted.")
-
-    cv2.destroyAllWindows()
+                ser = serial.Serial("/dev/ttyACM0", 9600)  # 컨베이어 벨트 재가동
+                print("Conveyor belt restarted.")
+    except KeyboardInterrupt:
+        print("Program terminated by keyboard interrupt.")
+    finally:
+        ser.close()
+        cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     main()
