@@ -95,6 +95,7 @@ def save_image(image):
     print(f"Image saved: {filename}")
 
 def main():
+    global ser  # 전역 변수 ser 사용
     try:
         while True:
             data = ser.read()
@@ -103,6 +104,7 @@ def main():
                 img = capture_image()
                 if img is None:
                     print("No image captured.")
+                    ser.close()
                     ser = serial.Serial("/dev/ttyACM0", 9600)  # 컨베이어 벨트 재가동
                     continue
 
@@ -116,6 +118,7 @@ def main():
                 cv2.waitKey(2000)  # 2초 동안 결과 표시
                 cv2.destroyAllWindows()
 
+                ser.close()
                 ser = serial.Serial("/dev/ttyACM0", 9600)  # 컨베이어 벨트 재가동
                 print("Conveyor belt restarted.")
     except KeyboardInterrupt:
