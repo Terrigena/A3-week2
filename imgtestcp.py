@@ -32,7 +32,7 @@ def capture_image():
     """카메라로 이미지 캡처."""
     cam = cv2.VideoCapture(0)
     if not cam.isOpened():
-        print("카메라 열기 실패!")
+        print("Can not open Cam!")
         return None
     ret, img = cam.read()
     cam.release()
@@ -55,7 +55,7 @@ def send_to_api(image):
         result = response.json()
         return result, original_width, original_height
     else:
-        print(f"API 호출 실패: {response.status_code}")
+        print(f"API Call Fail: {response.status_code}")
         return None, original_width, original_height
 
 def process_results(image, result, original_width, original_height):
@@ -84,12 +84,12 @@ def process_results(image, result, original_width, original_height):
             cv2.putText(image, text, (x_min, y_min - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
 
     else:
-        print("API 응답에 객체가 없습니다.")
+        print("API NO RESPONSE.")
 
     # 기대하는 클래스와 감지된 클래스 비교
     if not EXPECTED_CLASSES.issubset(detected_classes):
-        print("불량품 감지: 모든 클래스가 검출되지 않았습니다.")
-        cv2.imshow("불량품", np.zeros((200, 400, 3), dtype=np.uint8))  # 빈 메시지 창
+        print("This product is not complite.")
+        cv2.imshow("ERROR PRODUCT", np.zeros((200, 400, 3), dtype=np.uint8))  # 빈 메시지 창
         cv2.putText(
             img=np.zeros((200, 400, 3), dtype=np.uint8),
             text="Defective Product!",
@@ -101,14 +101,14 @@ def process_results(image, result, original_width, original_height):
         )
         ser.write(b"STOP")  # 불량품이 감지되면 컨베이어 벨트 정지
     else:
-        print("정상 제품: 컨베이어 벨트를 다시 시작합니다.")
+        print("Start moving.")
         ser.write(b"START")  # 정상 제품일 경우 컨베이어 벨트 다시 시작
 
     return image
 
 def main():
     while True:
-        print("컨베이어 벨트 동작 중... 객체 감지 대기")
+        print("moving...product ready")
         time.sleep(1)  # 객체 감지 신호 대기 (필요 시 수정)
 
         img = capture_image()
