@@ -104,8 +104,7 @@ def main():
                 img = capture_image()
                 if img is None:
                     print("No image captured.")
-                    ser.close()
-                    ser = serial.Serial("/dev/ttyACM0", 9600)  # 컨베이어 벨트 재가동
+                    ser.write(b"1")  # 컨베이어 벨트 재가동
                     continue
 
                 print("Image captured. Processing...")
@@ -118,8 +117,7 @@ def main():
                 cv2.waitKey(2000)  # 2초 동안 결과 표시
                 cv2.destroyAllWindows()
 
-                ser.close()
-                ser = serial.Serial("/dev/ttyACM0", 9600)  # 컨베이어 벨트 재가동
+                ser.write(b"1")  # 컨베이어 벨트 재가동
                 print("Conveyor belt restarted.")
     except KeyboardInterrupt:
         print("Program terminated by keyboard interrupt.")
