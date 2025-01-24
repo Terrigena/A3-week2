@@ -92,7 +92,7 @@ def save_image(image, filename):
     print(f"Image saved: {filename}")
 
 def main():
-    global ser
+    global ser  # 전역 변수 ser 사용
     try:
         while True:
             data = ser.read()
@@ -101,22 +101,28 @@ def main():
                 img = capture_image()
                 if img is None:
                     print("No image captured.")
-                    ser.write(b"1")
+                    ser.write(b"1")  # 컨베이어 벨트 재가동
                     continue
 
                 print("Image captured. Processing...")
                 result, original_width, original_height = send_to_api(img)
+
+                # 학습 모델 결과를 처리하여 라벨 박스 추가
                 img_with_boxes = process_results(img, result, original_width, original_height)
 
-                # 라벨링된 이미지를 저장
+                # 저장 디렉토리 및 파일 이름 설정
                 timestamp = time.strftime("%Y%m%d-%H%M%S")
                 filename = f"{SAVE_DIR}/product_{timestamp}.jpg"
+
+                # 라벨 박스가 추가된 이미지를 저장
                 save_image(img_with_boxes, filename)
 
+                # 결과를 표시
                 cv2.imshow("Detection Results", img_with_boxes)
-                cv2.waitKey(1000)  # 결과 표시
+                cv2.waitKey(2000)  # 2초 동안 결과 표시
                 cv2.destroyAllWindows()
 
+                # 컨베이어 벨트 재가동
                 ser.write(b"1")
                 print("Conveyor belt restarted.")
     except KeyboardInterrupt:
