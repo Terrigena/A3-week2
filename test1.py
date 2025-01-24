@@ -132,12 +132,10 @@ def main():
                 if not EXPECTED_CLASSES.issubset(detected_classes):
                     print("Defective Product Detected!")
 
-        elif not is_moving:
+        elif not is_moving and result_queue:
             with lock:
-                if latest_frame is not None:
-                    img = latest_frame.copy()
-            
-            result, _, _ = send_to_api(img)
+                result, original_width, original_height = result_queue.pop(0)
+
             if result and ("objects" not in result or len(result["objects"]) == 0):
                 print("Object Removed. Starting Conveyor Belt.")
                 ser.write(b"START\n")
