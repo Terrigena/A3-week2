@@ -4,6 +4,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 import serial
 import time
+import threading
 
 # 클래스별 색상 정의
 CLASS_COLORS = {
@@ -25,35 +26,60 @@ EXPECTED_CLASSES = set(CLASS_COLORS.keys())  # 기대하는 클래스 목록
 # 시리얼 통신 설정 (컨베이어 벨트 제어)
 ser = serial.Serial("/dev/ttyACM0", 9600)
 
-def capture_image():
-    """카메라로 이미지 캡처."""
+# 전역 변수
+latest_frame = None
+result_queue = []
+lock = threading.Lock()
+
+
+def capture_video():
+    """카메라로 이미지를 캡처하는 스레드."""
+    global latest_frame
     cam = cv2.VideoCapture(0)
     if not cam.isOpened():
-        print("Can not open Cam!")
-        return None
-    ret, img = cam.read()
+        print("Cannot open camera!")
+        return
+
+    while True:
+        ret, frame = cam.read()
+        if ret:
+            with lock:
+                latest_frame = frame
+        time.sleep(0.03)  # 30 FPS
+
     cam.release()
-    return img
 
-def send_to_api(image):
-    """이미지를 API로 전송하여 감지 결과를 반환."""
-    original_height, original_width = image.shape[:2]
-    resized_image = cv2.resize(image, TARGET_SIZE)
-    _, img_encoded = cv2.imencode(".jpg", resized_image)
 
-    response = requests.post(
-        url=VISION_API_URL,
-        auth=HTTPBasicAuth(TEAM, ACCESS_KEY),
-        headers={"Content-Type": "image/jpeg"},
-        data=img_encoded.tobytes(),
-    )
+def send_to_api_thread():
+    """API 호출을 처리하는 스레드."""
+    global result_queue
+    while True:
+        with lock:
+            if latest_frame is not None:
+                image = latest_frame.copy()
+            else:
+                continue
 
-    if response.status_code == 200:
-        result = response.json()
-        return result, original_width, original_height
-    else:
-        print(f"API Call Fail: {response.status_code}")
-        return None, original_width, original_height
+        original_height, original_width = image.shape[:2]
+        resized_image = cv2.resize(image, TARGET_SIZE)
+        _, img_encoded = cv2.imencode(".jpg", resized_image)
+
+        response = requests.post(
+            url=VISION_API_URL,
+            auth=HTTPBasicAuth(TEAM, ACCESS_KEY),
+            headers={"Content-Type": "image/jpeg"},
+            data=img_encoded.tobytes(),
+        )
+
+        if response.status_code == 200:
+            result = response.json()
+            with lock:
+                result_queue.append((result, original_width, original_height))
+        else:
+            print(f"API Call Fail: {response.status_code}")
+
+        time.sleep(0.5)  # API 호출 간격
+
 
 def process_results(image, result, original_width, original_height):
     """API 결과를 처리하고 이미지에 객체를 표시."""
@@ -81,40 +107,41 @@ def process_results(image, result, original_width, original_height):
 
     return image, detected_classes
 
+
 def main():
     is_moving = True
 
-    while True:
-        if is_moving:
-            print("Conveyor Belt Moving... Waiting for Object")
-            img = capture_image()
-            if img is None:
-                continue
+    # 스레드 시작
+    threading.Thread(target=capture_video, daemon=True).start()
+    threading.Thread(target=send_to_api_thread, daemon=True).start()
 
-            result, original_width, original_height = send_to_api(img)
+    while True:
+        if is_moving and result_queue:
+            with lock:
+                result, original_width, original_height = result_queue.pop(0)
+
+            img_with_boxes, detected_classes = process_results(latest_frame, result, original_width, original_height)
+
+            cv2.imshow("Detection Results", img_with_boxes)
 
             if result and "objects" in result and len(result["objects"]) > 0:
                 print("Object Detected. Stopping Conveyor Belt.")
-                ser.write(b"STOP")
+                ser.write(b"STOP\n")
+                time.sleep(0.5)
                 is_moving = False
-                img_with_boxes, detected_classes = process_results(img, result, original_width, original_height)
-
-                cv2.imshow("Detection Results", img_with_boxes)
                 if not EXPECTED_CLASSES.issubset(detected_classes):
                     print("Defective Product Detected!")
-                else:
-                    print("Product Passed Quality Check.")
 
-        else:
-            img = capture_image()
-            if img is None:
-                continue
-
+        elif not is_moving:
+            with lock:
+                if latest_frame is not None:
+                    img = latest_frame.copy()
+            
             result, _, _ = send_to_api(img)
-
             if result and ("objects" not in result or len(result["objects"]) == 0):
                 print("Object Removed. Starting Conveyor Belt.")
-                ser.write(b"START")
+                ser.write(b"START\n")
+                time.sleep(0.5)
                 is_moving = True
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
