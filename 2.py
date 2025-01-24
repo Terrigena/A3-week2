@@ -23,7 +23,6 @@ VISION_API_URL = "https://suite-endpoint-api-apne2.superb-ai.com/endpoints/395f7
 TEAM = "kdt2025_1-23"
 ACCESS_KEY = "Ci54Olu61E8WMpdbjvbzuaWOmnyY94aw3ayXunSG"
 TARGET_SIZE = (700, 700)  # 학습 모델 크기
-EXPECTED_CLASSES = set(CLASS_COLORS.keys())  # 기대하는 클래스 목록
 
 # 시리얼 통신 설정 (컨베이어 벨트 제어)
 ser = serial.Serial("/dev/ttyACM0", 9600)
@@ -93,7 +92,7 @@ def save_image(image, filename):
     print(f"Image saved: {filename}")
 
 def main():
-    global ser  # 전역 변수 ser 사용
+    global ser
     try:
         while True:
             data = ser.read()
@@ -102,25 +101,23 @@ def main():
                 img = capture_image()
                 if img is None:
                     print("No image captured.")
-                    ser.write(b"1")  # 컨베이어 벨트 재가동
+                    ser.write(b"1")
                     continue
 
                 print("Image captured. Processing...")
                 result, original_width, original_height = send_to_api(img)
                 img_with_boxes = process_results(img, result, original_width, original_height)
 
-                # 저장 디렉토리 및 파일 이름 설정
+                # 라벨링된 이미지를 저장
                 timestamp = time.strftime("%Y%m%d-%H%M%S")
                 filename = f"{SAVE_DIR}/product_{timestamp}.jpg"
-
-                # 라벨 박스가 추가된 이미지를 저장
                 save_image(img_with_boxes, filename)
 
                 cv2.imshow("Detection Results", img_with_boxes)
-                cv2.waitKey(2000)  # 2초 동안 결과 표시
+                cv2.waitKey(1000)  # 결과 표시
                 cv2.destroyAllWindows()
 
-                ser.write(b"1")  # 컨베이어 벨트 재가동
+                ser.write(b"1")
                 print("Conveyor belt restarted.")
     except KeyboardInterrupt:
         print("Program terminated by keyboard interrupt.")
