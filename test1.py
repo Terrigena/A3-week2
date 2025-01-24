@@ -108,6 +108,16 @@ def process_results(image, result, original_width, original_height):
     return image, detected_classes
 
 
+def send_serial_command(command):
+    """시리얼 명령을 보내고 플러시."""
+    try:
+        ser.write(command.encode())
+        ser.flush()  # 데이터 전송 보장
+        print(f"Sent command: {command}")
+    except Exception as e:
+        print(f"Failed to send command {command}: {e}")
+
+
 def main():
     is_moving = True
 
@@ -126,7 +136,7 @@ def main():
 
             if result and "objects" in result and len(result["objects"]) > 0:
                 print("Object Detected. Stopping Conveyor Belt.")
-                ser.write(b"STOP\n")
+                send_serial_command("STOP")
                 time.sleep(0.5)
                 is_moving = False
                 if not EXPECTED_CLASSES.issubset(detected_classes):
@@ -138,7 +148,7 @@ def main():
 
             if result and ("objects" not in result or len(result["objects"]) == 0):
                 print("Object Removed. Starting Conveyor Belt.")
-                ser.write(b"START\n")
+                send_serial_command("START")
                 time.sleep(0.5)
                 is_moving = True
 
