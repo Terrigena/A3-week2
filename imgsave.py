@@ -1,17 +1,9 @@
 import time
 import serial
-import requests
-import numpy as np
 import os
-from io import BytesIO
-from pprint import pprint
-
 import cv2
 
 ser = serial.Serial("/dev/ttyACM0", 9600)
-
-# API endpoint
-api_url = ""
 
 def get_img():
     """Get Image From USB Camera
@@ -71,49 +63,29 @@ def save_img(img, folder_path="week2-A3", counter_file="counter.txt"):
     with open(counter_path, "w") as f:
         f.write(str(counter + 1))
 
-def inference_reqeust(img: np.array, api_rul: str):
-    """Send the image to the API endpoint for inference.
+try:
+    while 1:
+        data = ser.read()
+        print(data)
+        if data == b"0":
+            img = get_img()
+            crop_info = {"x": 200, "y": 100, "width": 300, "height": 300}
 
-    Args:
-        img (numpy.array): Image numpy array
-        api_rul (str): API URL. Inference Endpoint
-    """
-    _, img_encoded = cv2.imencode(".jpg", img)
+            if crop_info is not None:
+                img = crop_img(img, crop_info)
 
-    # Prepare the image for sending
-    img_bytes = BytesIO(img_encoded.tobytes())
+            # 저장 기능 호출
+            save_img(img, folder_path="week2-A3")
 
-    # Send the image to the API
-    files = {"file": ("image.jpg", img_bytes, "image/jpeg")}
+            cv2.imshow("Captured Image", img)
+            cv2.waitKey(2000)  # 2초 동안 사진 표시
+            cv2.destroyWindow("Captured Image")  # 2초 후 창 닫기
 
-    print(files)
-
-    try:
-        response = requests.post(api_url, files=files)
-        if response.status_code == 200:
-            pprint(response.json())
-            return response.json()
+            ser.write(b"1")
         else:
-            print(f"Failed to send image. Status code: {response.status_code}")
-    except requests.exceptions.RequestException as e:
-        print(f"Error sending request: {e}")
-
-while 1:
-    data = ser.read()
-    print(data)
-    if data == b"0":
-        img = get_img()
-        crop_info = {"x": 200, "y": 100, "width": 300, "height": 300}
-
-        if crop_info is not None:
-            img = crop_img(img, crop_info)
-
-        # 저장 기능 호출
-        save_img(img, folder_path="week2-A3")
-
-        cv2.imshow("", img)
-        cv2.waitKey(1)
-        result = inference_reqeust(img, api_url)
-        ser.write(b"1")
-    else:
-        pass
+            pass
+except KeyboardInterrupt:
+    print("Program terminated by keyboard interrupt.")
+finally:
+    ser.close()
+    cv2.destroyAllWindows()
