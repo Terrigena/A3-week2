@@ -109,13 +109,16 @@ def main():
     global ser
     try:
         while True:
+            print("Waiting for data from conveyor belt...")
             data = ser.read()
+            print(f"Received data: {data}")  # 시리얼 데이터 확인
+
             if data == b"0":
                 print("Conveyor belt stopped. Capturing image...")
                 img = capture_image()
                 if img is None:
                     print("No image captured.")
-                    ser.write(b"1")
+                    ser.write(b"1")  # 컨베이어 벨트 다시 시작
                     continue
 
                 print("Image captured. Processing...")
@@ -127,9 +130,25 @@ def main():
 
                     if is_normal:
                         print("Status: NORMAL")
-                        ser.write(b"1")
+                        ser.write(b"1")  # 컨베이어 벨트 다시 시작
                     else:
                         print("Status: ABNORMAL")
+                        print("Waiting for object removal...")
+
+                        while True:
+                            img = capture_image()
+                            result, _, _ = send_to_api(img)
+
+                            if result:
+                                _, class_counts = process_results(img, result, original_width, original_height)
+                                is_normal = check_class_counts(class_counts)
+
+                                if is_normal:
+                                    print("Object removed. Resuming conveyor belt.")
+                                    ser.write(b"1")  # 컨베이어 벨트 다시 시작
+                                    break
+                            else:
+                                print("Rechecking... No valid response.")
 
                     timestamp = time.strftime("%Y%m%d-%H%M%S")
                     filename = f"{SAVE_DIR}/product_{timestamp}.jpg"
