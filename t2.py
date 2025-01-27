@@ -20,7 +20,7 @@ CLASS_COLORS = {
 }
 
 # API 설정
-VISION_API_URL = "https://suite-endpoint-api-apne2.superb-ai.com/endpoints/79fd669d-8ebc-45ff-85fb-6cdfe8071ba4/inference"
+VISION_API_URL = "https://suite-endpoint-api-apne2.superb-ai.com/endpoints/1df7dfe8-f7b8-4dac-913d-418b886193e4/inference"
 TEAM = "kdt2025_1-23"
 ACCESS_KEY = "Ci54Olu61E8WMpdbjvbzuaWOmnyY94aw3ayXunSG"
 TARGET_SIZE = (700, 700)  # 학습 모델 크기
