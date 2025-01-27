@@ -31,6 +31,15 @@ ser = serial.Serial("/dev/ttyACM0", 9600)
 SAVE_DIR = "detected_images"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
+EXPECTED_CLASS_COUNTS = {
+    "RASPBERRY PICO": 9,
+    "USB": 9,
+    "OSCILLATOR": 9,
+    "CHIPSET": 9,
+    "HOLE": 9,
+    "BOOTSEL": 9
+}
+
 def capture_image():
     """카메라로 이미지 캡처."""
     cam = cv2.VideoCapture(0)
@@ -63,11 +72,16 @@ def send_to_api(image):
 
 def process_results(image, result, original_width, original_height):
     """API 결과를 처리하고 이미지에 객체를 표시."""
+    class_counts = {key: 0 for key in EXPECTED_CLASS_COUNTS.keys()}
+
     if result and "objects" in result:
         for obj in result["objects"]:
             box = obj["box"]
             label = obj["class"]
             score = obj["score"]
+
+            if label in class_counts:
+                class_counts[label] += 1
 
             scale_x = original_width / TARGET_SIZE[0]
             scale_y = original_height / TARGET_SIZE[1]
@@ -84,7 +98,14 @@ def process_results(image, result, original_width, original_height):
     else:
         print("API NO RESPONSE.")
 
-    return image
+    return image, class_counts
+
+def check_class_counts(class_counts):
+    """각 클래스의 개수가 정상 범위인지 확인."""
+    for label, expected_count in EXPECTED_CLASS_COUNTS.items():
+        if class_counts.get(label, 0) != expected_count:
+            return False
+    return True
 
 def save_image(image, filename):
     """이미지를 저장."""
@@ -109,7 +130,15 @@ def main():
 
                 # 학습 모델 결과를 처리하여 라벨 박스 추가
                 if result:
-                    img_with_boxes = process_results(img, result, original_width, original_height)
+                    img_with_boxes, class_counts = process_results(img, result, original_width, original_height)
+                    is_normal = check_class_counts(class_counts)
+
+                    # 정상 여부 출력
+                    if is_normal:
+                        print("Status: NORMAL")
+                    else:
+                        print("Status: ABNORMAL")
+
                     # 저장 디렉토리 및 파일 이름 설정
                     timestamp = time.strftime("%Y%m%d-%H%M%S")
                     filename = f"{SAVE_DIR}/product_{timestamp}.jpg"
